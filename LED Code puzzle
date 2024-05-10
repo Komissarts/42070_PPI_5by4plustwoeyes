@@ -1,0 +1,126 @@
+// C++ code
+//
+
+// DEFINE
+#define DEBUG
+
+
+// CONSTANTS
+// numbers of INPUTS
+const byte numInputs = 3;
+// Pin 3, 4, 5 -> input(Button)
+const byte inputPins[numInputs] = {3,4,5};
+// numbers of steps in the sequence
+const byte numSteps = 5;
+// The correct sequence of inputs
+const byte steps[numSteps] = {0,2,1,1,0};
+// Pin 9, 10, 11, 12, 13 -> output(LED)
+const byte ledPins[numSteps] = {9, 10, 11, 12, 13};
+
+
+// GLOBALS
+// default state of each switch is HIGH
+bool lastInputState[] = {HIGH, HIGH, HIGH, HIGH};
+// current step
+int currentStep = 0;
+
+
+// PREVENT BOUNCE
+// The last time the input switch was toggled
+unsigned long lastDebounceTime = 0;
+// The amount of time to wait before reading again
+unsigned long debounceDelay = 50;
+
+
+void setup()
+{
+  // Initialise the input pins
+  for(int i=0; i< numInputs ; i++){
+  	pinMode(inputPins[i], INPUT_PULLUP);
+  }
+  
+  // Initialise the led(output) pins
+  for(int i=0; i< numSteps ; i++){
+  	pinMode(ledPins[i], OUTPUT);
+  }
+  
+  #ifdef DEBUG
+  	Serial.begin(9600);
+  	Serial.println(F("Serial communication started"));
+  #endif
+}
+
+void loop()
+{
+  
+  // Check we wait until "debounceDelay" since last input
+  if ( (millis() - lastDebounceTime) > debounceDelay ){
+  	
+    // Loop through all the inputs
+    for(int i=0; i<numInputs; i++){
+      int currentInputState = digitalRead(inputPins[i]);
+      
+      // If the input has changed, reset the debounce timer
+      if(currentInputState != lastInputState[i]){
+      	lastDebounceTime = millis();
+      }
+      
+      // the input is currently being pressed
+      if(currentInputState == LOW && lastInputState[i] == HIGH){
+      	// Was this the correct input for the step of the sequence?
+        if(steps[currentStep] == i){
+          currentStep++;
+          
+          #ifdef DEBUG
+          	Serial.print(F("Correct input! Onto step"));
+          	Serial.println(currentStep);
+          #endif
+        }
+        // Incorrect input!
+        else {
+          currentStep = 0;
+          Serial.println(F("Incorrect input! Back to the beginning!"));
+        }
+      }
+      
+      // Update the stored value for this input
+      lastInputState[i] = currentInputState;
+    }
+  }
+  
+  // Check whether the puzzle has been solved
+  if(currentStep == numSteps){
+  	onSolved();
+  }
+  
+  // Turn on the number of LEDS corresponding to the current step
+  for(int i=0; i< numSteps; i++){
+    digitalWrite(ledPins[i], (i < currentStep ? HIGH : LOW));
+  }
+}
+
+//Takes action when the puzzle become solved
+void onSolved(){
+  
+  #ifdef DEBUG
+  	// print message
+  	Serial.println(F("Puzzle Solved!"));
+  #endif
+  
+  // Release the lock
+  
+  
+  // Loop forever
+  while(true){
+  	// Flash LEDs
+    for(int i=0; i<numSteps; i++){
+      digitalWrite(ledPins[i], HIGH);
+      delay(100);
+    }
+    delay(100);
+    for(int i=0; i<numSteps; i++){
+      digitalWrite(ledPins[i], LOW);
+      delay(100);
+    }
+  }
+}
