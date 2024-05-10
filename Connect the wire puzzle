@@ -1,0 +1,137 @@
+// C++ code
+//
+
+// DEFINES
+#define DEBUG
+
+// CONSTANTS
+const byte numSockets = 6;
+const byte signalPins[numSockets] = {13,12,11,10,9,8};
+const byte ledPins[numSockets] = {7,6,5,4,3,2};
+const byte numConnections = 3;
+const byte connections[numConnections][2] = {{0,1},{2,5},{3,4}};
+
+// GLOBAL VARIABLES
+bool lastState[numConnections] = {false, false, false};
+enum PuzzleState {Initialising, Running, Solved};
+PuzzleState puzzleState = Initialising;
+
+
+void setup()
+{
+  for (int i=0; i<numSockets; i++){
+    pinMode(signalPins[i], INPUT_PULLUP);
+    pinMode(ledPins[i], OUTPUT);
+  }
+  
+  #ifdef DEBUG
+  Serial.begin(9600);
+  Serial.println(F("Serial communication started"));
+  #endif
+  
+  puzzleState = Running;
+}
+
+void loop()
+{
+  // Assume that all wires are correct
+  bool AllWiresCorrect = true;
+  
+  // Assume that the puzzle state has not changed since last reading
+  bool stateChanged = false;
+  
+  
+  // Check each connection in turn
+  for (int i=0; i<numConnections; i++){
+  	
+    // Get the pin numbers that should be connected by this wire
+    byte pin1 = signalPins[connections[i][0]];
+    byte pin2 = signalPins[connections[i][1]];
+    
+    // Test whether the appropriate pins are correctly connected
+    bool currentState = isConnected(pin1, pin2);
+    
+    // Has the connection state changed since last reading?
+    if (currentState != lastState[i]){
+      
+      // Light the LEDs at both ends of this connection
+      digitalWrite(ledPins[connections[i][0]], currentState);
+      digitalWrite(ledPins[connections[i][i]], currentState);
+      
+      // Set the flag to show the state of the puzzle has changed
+      stateChanged = true;
+      
+      // Update the stored connection state
+      lastState[i] = currentState;
+    
+    }
+    
+    // If any connection is incorrect, puzzle is not solved
+    if(currentState == false){
+      AllWiresCorrect = false;
+    }
+    
+  }
+  
+  // If a connectioin has been made/broken since last time we checked
+  // JUST FOR DEBUGGING
+  if(stateChanged){
+    #ifdef DEBUG
+      // Dump to serial the current state of all connections
+      for(uint8_t i=0; i<numConnections; i++){
+        Serial.print(F("Pin#"));
+        Serial.print(signalPins[connections[i][0]]);
+        Serial.print(F(" - Pin#"));
+        Serial.print(signalPins[connections[i][1]]);
+        Serial.print(F(" : "));
+        Serial.println(lastState[i] ? "CONNECTED" : "NOT CONNECTED");
+      }
+      Serial.println(F("---"));
+    #endif
+  }
+  
+  //If the state of the puzzle has changed
+  if(AllWiresCorrect && puzzleState == Running){
+    onSolve();
+  }
+  // If the state of the puzzle has changed
+  else if (!AllWiresCorrect && puzzleState == Solved){
+    onUnsolve();
+  }
+  
+}
+
+// onSolve()
+void onSolve() {
+  #ifdef DEBUG
+    Serial.println(F("The puzzle has been solved!"));
+  #endif
+  puzzleState = Solved;
+}
+
+// onUnsolve()
+void onUnsolve(){
+  #ifdef DEBUG
+    Serial.println(F("The puzzle is no longer solved!"));
+  #endif
+  puzzleState = Running;
+}
+
+// isConnected()
+bool isConnected(byte OutputPin, byte InputPin){
+  
+  // To test whether the pins are connected, set the first as output and the second as input
+  pinMode(OutputPin, OUTPUT);
+  pinMode(InputPin, INPUT_PULLUP);
+  
+  // Set the output pin LOW
+  digitalWrite(OutputPin, LOW);
+  
+  // If connected, the LOW signal should be detected on the input pin
+  bool isConnected = !digitalRead(InputPin);
+  
+  // Set the output pin back to its default state
+  pinMode(OutputPin, INPUT_PULLUP);
+  
+  return isConnected;
+}
